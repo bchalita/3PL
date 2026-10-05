@@ -447,10 +447,11 @@ let CMP_LANE = null;                              // side by side: the lane whos
 const L = DATA0.layout, T0 = DATA0.meta.t0, T1 = DATA0.meta.t1, W = L.W, D = L.D;
 const DAY = LANG === "pt" ? ["dom", "seg", "ter", "qua", "qui", "sex", "s\u00e1b"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const dayName = m => DAY[Math.floor(m / 1440) % 7];
-document.getElementById("sub").textContent = LANG === "en" ? DATA.meta.day : DATA.meta.day.replace(/[A-Z][a-z]{2}/g, w => t_(w));
 const DAYS = DATA0.meta.days || 1, QUIET = DATA0.meta.quiet || null;   // replayed days; floor-closed hours to skip while playing
 const dayStart = m => Math.floor(m / 1440) * 1440;
 const DAYFULL = LANG === "pt" ? ["domingo", "segunda", "ter\u00e7a", "quarta", "quinta", "sexta", "s\u00e1bado"] : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+{ const d0 = Math.floor(T0 / 1440), n = Math.max(1, Math.round((T1 - T0) / 1440)), full = d => DAYFULL[d % 7].replace(/^./, c => c.toUpperCase());   // weekdays only: the simulated dates sit in the future and would confuse
+  document.getElementById("sub").textContent = n > 1 ? `${full(d0)} \u2013 ${full(d0 + n - 1)}` : full(d0); }
 const CAR = { AF:"Amazon Freight", UBER:"Uber Freight", GEN:t_("Other carrier"), LTL:"LTL" };
 const AIRPORT = { ATL:"Atlanta", MGE:"Marietta, GA", CHA:"Chattanooga", BNA:"Nashville", CLT:"Charlotte", MEM:"Memphis", JAX:"Jacksonville", SDF:"Louisville", IND:"Indianapolis", RDU:"Raleigh-Durham",
   GSP:"Greenville-Spartanburg", TPA:"Tampa", MCO:"Orlando", LEX:"Lexington", CVG:"Cincinnati", CMH:"Columbus", STL:"St. Louis", HSV:"Huntsville", BHM:"Birmingham", MOB:"Mobile", SAV:"Savannah",
