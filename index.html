@@ -1975,6 +1975,6 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
   requestAnimationFrame(place);
   addEventListener("keydown", e => { if (T.i < 0 && veil.hidden) return; if (e.key === "Escape") end(); else if (T.i >= 0 && e.key === "ArrowRight") go(T.i + 1); else if (T.i >= 0 && e.key === "ArrowLeft") go(T.i - 1); });
   const tb = $("tourBtn"); if (tb) { tb.hidden = false; tb.onclick = () => intro(); }
-  if (!store.get() && !location.hash) setTimeout(intro, 600);
+  if (!location.hash) setTimeout(intro, 600);                                 // the tour is always the first screen
 }
 </script>
