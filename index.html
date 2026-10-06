@@ -187,7 +187,7 @@
   body.story #focus .act,body.story #focus svg+.llg,body.story #focus .who~.who{display:none}body.story #focus{font-size:14px}
   body.story .wbadge{top:16px;font-size:15px;padding:8px 18px;box-shadow:0 6px 18px rgba(17,22,31,.18)}
   body.story .cmp .ph{pointer-events:none}body.story .cmp .ph b{font-size:15px}
-  body.story .tintro{max-width:680px;padding:30px 34px;gap:16px}body.story .tintro h2{font-size:30px}body.story .tintro p{font-size:18px;line-height:1.5}body.story .tintro .tlab{font-size:12.5px;margin-bottom:5px}body.story .tintro .tlead{font-size:17px;color:var(--muted)}body.story .tintro .tnote{font-size:14px}body.story .tintro .tbtns .btn{font-size:16px;padding:10px 18px}
+  body.story .tintro{max-width:680px;padding:30px 34px;gap:16px}body.story .tintro h2{font-size:30px}body.story .tintro p{font-size:18px;line-height:1.5}body.story .tintro .tlab{font-size:12.5px;margin-bottom:5px}body.story .tintro .tlead{font-size:20px;color:var(--ink)}body.story .tintro .tnote{font-size:14px}body.story .tintro .tbtns .btn{font-size:16px;padding:10px 18px}
   .ttip p b{font-weight:700}
   body.story #tip{display:none!important}
   /* during the tour the OpEra cards are bigger and quieter */
@@ -1240,82 +1240,78 @@ const TOUR = {
   key:"3pl-template-tour-v6",
   intro:{
     title:"A prep and cross-dock warehouse",
-    blocks:[
-      { label:t_("The warehouse"), text:t_("Sellers send their goods here. The warehouse preps them for Amazon and ships them by truck to Amazon's warehouses. Every day someone has to decide which trucks to book, when, and with which carrier. Book too late and you pay for Amazon Freight, about 30% more.") },
-      { label:t_("What OpEra does"), text:t_("OpEra books those trucks on its own and plans tomorrow's the night before. When something unusual happens, it lays out the options and a person approves one.") },
-    ],
-    lead:t_("A short guided visit: the warehouse first, then the same two days without and with OpEra."),
-    note:"Synthetic data for a typical Amazon prep warehouse. Every number is a placeholder until this runs on real data.",
+    lead:t_("Every day this warehouse decides which trucks to book. OpEra makes those decisions. Here are the same two days, without and with it."),
+    note:"Simulated data.",
   },
   steps:[
     // ---- the visit (always first, in time order); each scene plays at a speed fitted to its action and keeps going
     VISIT.unload && { ord:-5, chip:t_("The warehouse"), badge:false, mode:"baseline", title:t_("Trucks arrive"), at:VISIT.unload.a, lead:0, after:fit(VISIT.unload.a, VISIT.unload.b, 24),
       cam:() => aim(inDoor(VISIT.unload.tr.door).x, -3, 0, 30, 36),                    // from inside the building, looking out at the trailer
       pallets:() => VISIT.unload.tr.pal, marks:() => [{ x:inDoor(VISIT.unload.tr.door).x, z:9, text:t_("Unloading pallets from {c}", { c:VISIT.unload.tr.cust }) }],
-      text:t_("Sellers send their goods here. Some pallets need prep for Amazon, others just pass through.") },
+      text:t_("Goods arrive from sellers.") },
     VISIT.prep && { ord:-4, chip:t_("The warehouse"), badge:false, mode:"baseline", title:t_("Prep"), at:VISIT.prep.a, lead:0, after:fit(VISIT.prep.a, VISIT.prep.b, 28),   // slower: each ride to the table lasts a few seconds
       cam:() => aim(VISIT.prep.x, VISIT.prep.z - 4, 0, 30, 30),                         // the tables where the pallets arrive
       pallets:() => VISIT.prep.ids, marks:() => [{ x:VISIT.prep.x, z:VISIT.prep.z + 3, text:t_("Prep tables") }],
-      text:t_("Pallet jacks bring pallets to the prep tables, where they are labeled, bagged and wrapped the way Amazon requires.") },
+      text:t_("Pallets are labeled and wrapped for Amazon.") },
     VISIT.stage && { ord:-3, chip:t_("The warehouse"), badge:false, mode:"baseline", title:t_("One lane per Amazon warehouse"), at:VISIT.stage.a, lead:0, after:fit(VISIT.stage.a, VISIT.stage.b, 14),
       cam:() => { const [a] = lanesX(VISIT.stage.g), x0 = Math.max(0, Math.min(a - 2, W - 60)); return { area:[x0, x0 + 58, D - 30, D + 4] }; },   // a stretch of lanes, the pallet's own among them
       pallets:() => [VISIT.stage.id],
       marks:() => [{ x:VISIT.stage.x, z:D - 16, text:t_("Lane {fc}", { fc:VISIT.stage.g }) }],
-      text:t_("Each finished pallet goes to the lane of the Amazon warehouse it is shipping to, next to the doors where trucks load.") },
+      text:t_("Each pallet waits in the lane of its Amazon warehouse.") },
     VISIT.load && { ord:-2, chip:t_("The warehouse"), badge:false, mode:"baseline", title:t_("The decision"), at:VISIT.load.a, lead:0, after:fit(VISIT.load.a, VISIT.load.b),
       cam:() => aim(outDoor(VISIT.load.tr.door).x + 4, D + 9, -16, 26, 30),            // from the yard: the whole truck at the door, the lane behind it
       pallets:() => VISIT.load.tr.pal, marks:() => [{ x:outDoor(VISIT.load.tr.door).x, z:D - 5, text:t_("Loading for {fc}", { fc:VISIT.load.tr.fc }) }],
-      text:() => t_("This truck is loading for {fc}. Someone had to book it in time: a regular carrier is cheaper but needs an Amazon delivery slot, often days out; Amazon Freight comes fast and costs about 30% more.", { fc:fcx(VISIT.load.tr.fc) }) },
+      text:() => t_("Someone had to book this truck for {fc} in time. Regular carriers are cheap but slow to schedule; Amazon Freight is fast but costs about 30% more.", { fc:fcx(VISIT.load.tr.fc) }) },
     { ord:-1, chip:t_("Played twice"), mode:"compare", title:t_("The same two days, twice"), at:null, cam:"overview",
-      text:t_("Left, trucks are booked the way coordinators do it today. Right, OpEra plans them. Same pallets, same Amazon slots, same prices.") },
+      text:t_("Left: how it's done today. Right: OpEra. Same pallets, same prices.") },
     // ---- the story
     DIS && { ord:DIS.t, mode:"baseline", title:t_("Something goes wrong"), at:() => DIS.t + 1, lead:6, speed:1, cam:() => laneArea(DIS.group),
       pallets:() => DIS_B ? palsOf(TB, DIS_B.truck) : null,
       marks:() => [{ ...(DIS_B ? palsAt(TB, palsOf(TB, DIS_B.truck), DIS.t + 1, laneMid(DIS.group)) : laneMid(DIS.group)), level:"red", text:t_("{n} pallets will be late", { n:DIS_B ? DIS_B.late : "" }) }],
-      text:() => t_("At {h} Amazon stops taking deliveries at {fc} for two days. The coordinators' rule just waits for {d}, so {n} pallets will arrive late.", { h:hhmm(DIS.t), fc:fcx(DIS.fc), d:DIS.d3 != null ? DAYFULL[DIS.d3 % 7] : "", n:DIS_B ? DIS_B.late : "" }) },
+      text:() => t_("Amazon closes {fc} for two days. Today's rule just waits: {n} pallets late.", { h:hhmm(DIS.t), fc:fcx(DIS.fc), d:DIS.d3 != null ? DAYFULL[DIS.d3 % 7] : "", n:DIS_B ? DIS_B.late : "" }) },
     DIS && { ord:DIS.t + .1, mode:"opera", title:t_("Same moment, with OpEra"), at:() => DIS.t + 1, lead:0, after:.15, cam:() => laneArea(DIS.group),
       cards:() => ["callout"], fadeCards:true,                                          // the decision card is already there, faded, until Next
       pallets:() => lanePals(TO, DIS.group, DIS.t + 1),
       marks:() => [{ ...palsAt(TO, lanePals(TO, DIS.group, DIS.t + 1), DIS.t + 1, laneMid(DIS.group)), level:"amber", text:t_("{n} pallets lose their slot", { n:DIS.n }) }],
-      text:t_("OpEra sees the closure at once and works out the options.") },
+      text:t_("OpEra sees it at once.") },
     DIS && { ord:DIS.t + .2, mode:"opera", title:t_("OpEra proposes, a person decides"), at:null, after:.5, cam:null, ring:() => $("callout"),   // 30\u00d7: the approval lands about 15 s in
-      text:t_("Each option shows what it costs and how many pallets end up late. The coordinator approves the one OpEra recommends.") },
+      text:t_("It shows the options and what each costs. A person approves.") },
     DECISION && { ord:DECISION.b.bk, mode:"baseline", title:t_("The expensive truck"), at:DECISION.b.bk + 1, lead:6, speed:1, cam:() => laneArea(DECISION.b.g),
       pallets:() => palsOf(TB, DECISION.b.i),
       marks:() => [{ ...palsAt(TB, palsOf(TB, DECISION.b.i), DECISION.b.bk + 1, laneMid(DECISION.b.g)), level:"red", text:t_("{n} pallets, the oldest waiting {h} h", { n:DECISION.b.n, h:(DECISION.b.wk || {}).h ?? "" }) }],
-      text:() => t_("At {h} the oldest pallet in lane {fc} has waited {w} hours. To be safe, the coordinators' rule books Amazon Freight: {p} more than a regular truck.", { h:hhmm(DECISION.b.bk), fc:fcx(DECISION.b.fc), w:(DECISION.b.wk || {}).h ?? "", p:money(premium(DECISION.b)) }) },
+      text:() => t_("Pallets in {fc} waited too long, so the rule books Amazon Freight: {p} extra.", { h:hhmm(DECISION.b.bk), fc:fcx(DECISION.b.fc), w:(DECISION.b.wk || {}).h ?? "", p:money(premium(DECISION.b)) }) },
     DECISION && { ord:DECISION.b.bk + .1, mode:"opera", title:t_("Same moment, with OpEra"), at:DECISION.b.bk + 1, lead:0, cam:() => laneArea(DECISION.b.g),
       pallets:() => palsOf(TO, DECISION.o.i),
       marks:() => [{ ...palsAt(TO, palsOf(TO, DECISION.o.i), DECISION.b.bk + 1, laneMid(DECISION.b.g)), level:"green", text:t_("{fc}: regular truck, booked {w}", { fc:DECISION.b.fc, w:whenTxt(DECISION.o.bk) }) }],
-      text:() => DECISION.o.tp != null && DECISION.o.tp <= DECISION.b.bk ? t_("OpEra shipped this lane on a regular truck at {w}, on an Amazon slot that meets the deadline. Nothing here waits long enough to need Amazon Freight.", { w:whenTxt(DECISION.o.tp) })
-        : t_("OpEra had already booked a regular truck for this lane, on an Amazon slot that still meets the deadline. No premium.") },
+      text:() => DECISION.o.tp != null && DECISION.o.tp <= DECISION.b.bk ? t_("OpEra shipped this lane on a regular truck at {w}. No extra cost.", { w:whenTxt(DECISION.o.tp) })
+        : t_("OpEra booked a regular truck in time. No extra cost.") },
     { ord:DECISION ? DECISION.b.bk + .2 : T0 + 12 * 60 + 2, mode:"opera", title:t_("How OpEra decides"), at:null, cam:null,
       pallets:() => DECISION ? palsOf(TO, DECISION.o.i) : null,
-      text:t_("Every 30 minutes OpEra looks at each lane: the pallets waiting, the Amazon slots on offer and today's prices. It books when waiting would likely cost more, and it counts every late pallet as a cost. Click any truck to see why it was booked.") },
+      text:t_("Every 30 minutes it checks each lane and books when waiting would cost more. Click a truck to see why.") },
     { ord:Math.max(DECISION ? DECISION.b.bk + 1 : 0, DIS ? DIS.t + 1 : 0, T0 + 12 * 60), mode:"opera", title:t_("Every lane explains itself"), at:() => (laneExample() || { t:T0 + 12 * 60 }).t, lead:1, speed:1,
       cam:() => { const ex = laneExample(); if (!ex) return null; const [a, b] = lanesX(ex.g), d = outDoor(ex.door); return { area:[Math.min(a, d.x - 4), Math.max(b, d.x + 4), D - 26, D + 16], from:"south" }; },
       do:() => laneExample() && setFocus({ kind:"lane", group:laneExample().g }), doAfter:1400, ring:() => $("focus"), after:.5,   // 30\u00d7: the card visibly counts up
-      text:t_("Click any lane to see what is loaded, what is booked and how much time is left. Here a truck is loading, and the card counts up as it fills.") },
+      text:t_("Click any lane to see where it stands.") },
     { ord:T0 + 18 * 60, mode:"compare", title:t_("Both at once"), at:T0 + 18 * 60, lead:3, cam:"overview",
       figs:() => { const a = stats(TB, T0, T0 + 18 * 60), b = stats(TO, T0, T0 + 18 * 60);
         return [[t_("Freight per pallet"), money(a.cpp), money(b.cpp)], [t_("Amazon Freight trucks"), a.af, b.af]]; },
-      text:t_("Here are the two days side by side, at the same moment. These are the trucks each side has booked by 6 pm.") },
+      text:t_("Both sides at 6 pm.") },
     DAYS > 1 && { ord:T0 + 21 * 60, mode:"compare", title:t_("Tomorrow's plan, made tonight"), at:() => T0 + 21 * 60 + 1, lead:0, after:.6, cam:"overview", dimAll:true, cards:() => ["pc0", "pc1"],
-      text:() => t_("At 9 pm each side has a plan for {d}. Here is how they compare.", { d:dayN(T0 + 1440) }) },
+      text:() => t_("At 9 pm each side has a plan for {d}.", { d:dayN(T0 + 1440) }) },
     DAYS > 1 && { ord:T0 + 21 * 60 + .1, mode:"compare", title:() => t_("{d} without OpEra", { d:dayN(T0 + 1440) }), at:null, after:.6, cam:null, ring:() => $("pc0"), cards:() => ["pc1"],
-      text:() => { const a = planStats(TB, T0 + 1440, T0 + 21 * 60); return t_("{n} full trucks are lined up, at {c} a pallet. The rest of {d} gets booked as the lanes fill.", { n:a.bk.filter(x => x.car !== "LTL").length, c:money(a.cpp), d:dayN(T0 + 1440) }); } },
+      text:() => { const a = planStats(TB, T0 + 1440, T0 + 21 * 60); return t_("{n} full trucks so far, at {c} a pallet.", { n:a.bk.filter(x => x.car !== "LTL").length, c:money(a.cpp), d:dayN(T0 + 1440) }); } },
     DAYS > 1 && { ord:T0 + 21 * 60 + .2, mode:"compare", title:() => t_("{d} with OpEra", { d:dayN(T0 + 1440) }), at:null, after:.6, cam:null, ring:() => $("pc1"), cards:() => ["pc0"],
-      text:() => { const b = planStats(TO, T0 + 1440, T0 + 21 * 60); return t_("OpEra publishes {n} full trucks for {d}, already priced and on Amazon slots, at {c} a pallet. The coordinator approves, and the floor can stage tonight.", { n:b.bk.filter(x => x.car !== "LTL").length, c:money(b.cpp), d:dayN(T0 + 1440) }); } },
+      text:() => { const b = planStats(TO, T0 + 1440, T0 + 21 * 60); return t_("{n} full trucks, already on Amazon slots, at {c} a pallet.", { n:b.bk.filter(x => x.car !== "LTL").length, c:money(b.cpp), d:dayN(T0 + 1440) }); } },
     { ord:T0 + 21 * 60 + .3, chip:t_("Your turn"), mode:"compare", title:t_("Move through the two days"), at:null, after:.25, cam:null, showTime:true, ring:() => document.querySelector(".timebar"),
-      text:t_("Drag the timeline to any moment of the two days and watch both operations at that time. Play and the speed buttons are here too.") },
+      text:t_("Drag to any moment.") },
     { ord:T0 + 21 * 60 + .4, chip:t_("Your turn"), mode:"compare", title:t_("One side or both"), at:null, after:.25, cam:null, showModes:true, ring:() => $("modes"),
-      text:t_("Switch between without OpEra, with OpEra, or both side by side. One side at a time shows every detail: click a lane or a truck to see what is happening and why.") },
+      text:t_("One side or both. Click anything for details.") },
     { ord:T0 + 21 * 60 + .5, chip:t_("In short"), mode:"compare", title:t_("What OpEra does"), at:null, after:.25, cam:"overview", dimAll:true,
-      text:t_("<b>On its own:</b> books each lane's trucks, picks when and with which carrier, and plans tomorrow the night before.<br><b>With a person:</b> when something breaks, it lays out the options with their cost, and the coordinator picks one.<br><b>The result:</b> fewer expensive last-minute trucks and fewer late pallets.") },
+      text:t_("OpEra books the trucks on its own and asks a person only when something breaks.") },
     { title:t_("Over 30 simulated weeks"), mode:"compare", at:null, cam:"overview",
       figs:() => { const c = TO.DATA.compare && TO.DATA.compare.average; if (!c) return [];
         return [[t_("Freight per pallet"), money(c.baseline.cost_per_pallet), money(c.opera.cost_per_pallet)], [t_("Late pallets per week"), Math.round(c.baseline.late), Math.round(c.opera.late)]]; },
-      text:() => { const c = TO.DATA.compare; return c ? t_("On average OpEra spends {a}% less on freight per pallet, with {b}% fewer late pallets.", { a:pct(c.average.baseline.cost_per_pallet, c.average.opera.cost_per_pallet), b:pct(c.average.baseline.late, c.average.opera.late) }) : ""; } },
+      text:() => { const c = TO.DATA.compare; return c ? t_("{a}% less freight per pallet, {b}% fewer late pallets.", { a:pct(c.average.baseline.cost_per_pallet, c.average.opera.cost_per_pallet), b:pct(c.average.baseline.late, c.average.opera.late) }) : ""; } },
   ].filter(Boolean).sort((a, b) => (a.ord ?? 1e12) - (b.ord ?? 1e12)),
 };
 // pointer: trucks first, then stations
