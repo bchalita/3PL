@@ -203,6 +203,22 @@
   .tfigs td{padding:3px 0 3px 14px;text-align:right;font-weight:700}.tfigs td:first-child{text-align:left;padding-left:0;font-weight:500;color:var(--muted)}.tfigs .o{color:#1f4fa8}
   .hlogo{height:26px;width:auto;display:block;margin-left:6px}
   .langsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;font-size:12px;font-weight:700}.langsw a,.langsw span{padding:5px 10px;text-decoration:none;color:var(--muted)}.langsw span{background:var(--ink);color:#fff}body.story .langsw{display:none}
+  body.story .ttip.twide{width:min(620px,calc(100vw - 32px))}
+  /* the "how it works" diagram: sources flow into OpEra, a decision comes out */
+  .flow{display:grid;grid-template-columns:1fr 150px 1fr;align-items:center;gap:10px;margin:6px 0 2px}
+  .flow .srcs,.flow .outs{display:flex;flex-direction:column;gap:8px}
+  .flow .b{position:relative;padding:7px 12px;border-radius:999px;background:#eef2f8;color:var(--ink);font-size:13.5px;font-weight:600;text-align:center;white-space:nowrap}
+  .flow .b::after{content:"";position:absolute;top:50%;left:100%;width:30px;height:2px;background:linear-gradient(90deg,#c9d3e4 0 40%,transparent 40%) 0 0/10px 2px repeat-x;animation:fdash .8s linear infinite}
+  .flow .outs .b{background:#e7f6ec;color:#1f6d42}.flow .outs .b::after{left:auto;right:100%}
+  @keyframes fdash{to{background-position:10px 0}}
+  .flow .core{position:relative;width:150px;height:150px;display:grid;place-items:center}
+  .flow .core img{width:96px;height:auto;position:relative;z-index:1}
+  .flow .core::before{content:"";position:absolute;inset:6px;border-radius:50%;background:#f4f8f5}
+  .flow .core::after{content:"";position:absolute;inset:0;border-radius:50%;border:5px solid transparent;border-top-color:#2e9d5b;border-right-color:#2e9d5b55;animation:fspin 1.4s linear infinite}
+  @keyframes fspin{to{transform:rotate(360deg)}}
+  .flow .b.in{animation:fpulse 2.4s ease-in-out infinite}.flow .b.in:nth-child(2){animation-delay:.5s}.flow .b.in:nth-child(3){animation-delay:1s}.flow .b.in:nth-child(4){animation-delay:1.5s}.flow .b.in:nth-child(5){animation-delay:2s}
+  @keyframes fpulse{0%,100%{opacity:.55}30%{opacity:1}}
+  @media (max-width:640px){.flow{grid-template-columns:1fr}.flow .b::after{display:none}}
   .tfaded{opacity:.4;filter:saturate(.4);transition:opacity .4s ease}
   .tfade{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;transition:opacity .9s ease;opacity:1}
   .tintro .tlead{font-size:16.5px;line-height:1.5}
@@ -1285,9 +1301,12 @@ const TOUR = {
       marks:() => [{ ...palsAt(TO, palsOf(TO, DECISION.o.i), DECISION.b.bk + 1, laneMid(DECISION.b.g)), level:"green", text:t_("{fc}: regular truck, booked {w}", { fc:DECISION.b.fc, w:whenTxt(DECISION.o.bk) }) }],
       text:() => DECISION.o.tp != null && DECISION.o.tp <= DECISION.b.bk ? t_("OpEra shipped this lane on a regular truck at {w}. No extra cost.", { w:whenTxt(DECISION.o.tp) })
         : t_("OpEra booked a regular truck in time. No extra cost.") },
-    { ord:DECISION ? DECISION.b.bk + .2 : T0 + 12 * 60 + 2, mode:"opera", title:t_("How OpEra decides"), at:null, cam:null,
-      pallets:() => DECISION ? palsOf(TO, DECISION.o.i) : null,
-      text:t_("Every 30 minutes it checks each lane and books when waiting would cost more. Click a truck to see why.") },
+    { ord:DECISION ? DECISION.b.bk + .2 : T0 + 12 * 60 + 2, mode:"opera", title:t_("How OpEra decides"),
+      at:() => (laneExample() || { t:T0 + 12 * 60 }).t - 1, lead:0, after:.25,
+      cam:() => { const ex = laneExample(); if (!ex) return null; const d = outDoor(ex.door); return aim(d.x + 3, D + 10, -16, 30, 34); },   // from the yard: the truck at the door, its lane behind it
+      spot:() => { const ex = laneExample(); if (!ex) return []; const d = outDoor(ex.door), [a, b] = lanesX(ex.g); return [{ x0:d.x - 2, x1:d.x + 2, z0:D, z1:D + 22, h:5 }, { x0:Math.min(a, d.x - 2), x1:Math.max(b, d.x + 2), z0:D - 24, z1:D, h:2 }]; },
+      pallets:() => { const ex = laneExample(); return ex ? lanePals(TO, ex.g, ex.t) : null; },
+      text:t_("Every 30 minutes it checks each lane and books when waiting would cost more. Click the truck to see why it was booked.") },
     { ord:Math.max(DECISION ? DECISION.b.bk + 1 : 0, DIS ? DIS.t + 1 : 0, T0 + 12 * 60), mode:"opera", title:t_("Every lane explains itself"), at:() => (laneExample() || { t:T0 + 12 * 60 }).t, lead:1, speed:1,
       cam:() => { const ex = laneExample(); if (!ex) return null; const [a, b] = lanesX(ex.g), d = outDoor(ex.door); return { area:[Math.min(a, d.x - 4), Math.max(b, d.x + 4), D - 26, D + 16], from:"south" }; },
       do:() => laneExample() && setFocus({ kind:"lane", group:laneExample().g }), doAfter:1400, ring:() => $("focus"), after:.5,   // 30\u00d7: the card visibly counts up
@@ -1306,8 +1325,12 @@ const TOUR = {
       text:t_("Drag to any moment.") },
     { ord:T0 + 21 * 60 + .4, chip:t_("Your turn"), mode:"compare", title:t_("One side or both"), at:null, after:.25, cam:null, showModes:true, ring:() => $("modes"),
       text:t_("One side or both. Click anything for details.") },
-    { ord:T0 + 21 * 60 + .5, chip:t_("In short"), mode:"compare", title:t_("What OpEra does"), at:null, after:.25, cam:"overview", dimAll:true,
-      text:t_("OpEra books the trucks on its own and asks a person only when something breaks.") },
+    { ord:T0 + 21 * 60 + .5, chip:t_("In short"), mode:"compare", title:t_("What OpEra does"), at:null, after:.25, cam:"overview", dimAll:true, center:true, wide:true,
+      text:t_("It reads the systems the team already uses and makes the booking decisions, calling a person only when something breaks."),
+      html:() => { const logo = (document.querySelector(".hlogo") || {}).src || "";
+        return `<div class="flow"><div class="srcs">${["WMS", "TMS", "Amazon", "Excel", "Email"].map(x => `<span class="b in">${x}</span>`).join("")}</div>
+          <div class="core">${logo ? `<img src="${logo}" alt="OpEra">` : "<b>OpEra</b>"}</div>
+          <div class="outs"><span class="b">${t_("Which trucks")}</span><span class="b">${t_("When")}</span><span class="b">${t_("Which carrier")}</span><span class="b">${t_("Tomorrow's plan")}</span></div></div>`; } },
     { title:t_("Over 30 simulated weeks"), mode:"compare", at:null, cam:"overview",
       figs:() => { const c = TO.DATA.compare && TO.DATA.compare.average; if (!c) return [];
         return [[t_("Freight per pallet"), money(c.baseline.cost_per_pallet), money(c.opera.cost_per_pallet)], [t_("Late pallets per week"), Math.round(c.baseline.late), Math.round(c.opera.late)]]; },
@@ -1833,7 +1856,9 @@ window.FR = { get TRK() { return TRK; }, get cam() { return camera; }, get speed
    after: speed once the clock reaches `at` (default 10\u00d7; the replay never stops during the tour),
    pallets: fn -> pallet ids to light up (everything else dims), reveal: [[ms, fn -> element(s)], ...] cards that
    appear one after another, the highlight moving to each, cards: fn -> card ids to show without highlighting them,
-   dimAll: dim the whole page around the tour card, showModes / showTime: bring back those controls for that stop }.
+   dimAll: dim the whole page around the tour card, showModes / showTime: bring back those controls for that stop,
+   spot: fn -> [{x0, x1, z0, z1, h}] floor boxes kept bright while the rest of the page dims (a truck, a lane),
+   center: true puts the card in the middle of the floor, html: fn -> extra markup under the text, wide: a wider card }.
    Event cards on the floor show only when the stop rings them. Switching run between stops crossfades the view.
    The engine handles the rest: clock jump + short play-in, camera, highlight, floor labels per half, Back / Next / Esc.
    While the tour runs the page is in story mode (body.story): only the floor, the card and the clock show; a line joins
@@ -1847,7 +1872,8 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
   const ringAt = k => { while (ringPool.length <= k) { const r = document.createElement("div"); r.className = "tring"; r.hidden = true; document.body.appendChild(r); ringPool.push(r); } return ringPool[k]; };
   const markLayer = document.createElement("div"); markLayer.className = "tmarks"; stage.appendChild(markLayer);
   const dim = document.createElementNS("http://www.w3.org/2000/svg", "svg"); dim.setAttribute("class", "tdim"); dim.setAttribute("preserveAspectRatio", "none"); dim.style.opacity = 0;
-  const dimPath = document.createElementNS("http://www.w3.org/2000/svg", "path"); dimPath.setAttribute("fill", "rgba(15,20,30,.44)"); dimPath.setAttribute("fill-rule", "evenodd"); dim.appendChild(dimPath); document.body.appendChild(dim);
+  dim.innerHTML = '<defs><mask id="tdmask" maskUnits="userSpaceOnUse"><rect x="0" y="0" width="100%" height="100%" fill="white"/><g fill="black"></g></mask></defs><rect x="0" y="0" width="100%" height="100%" fill="rgba(15,20,30,.44)" mask="url(#tdmask)"/>';
+  const dimHoles = dim.querySelector("mask g"); document.body.appendChild(dim);      // highlighted areas are cut out of the dim, overlapping freely
   const wire = document.createElementNS("http://www.w3.org/2000/svg", "svg"); wire.setAttribute("class", "twire"); wire.setAttribute("preserveAspectRatio", "none");
   wire.innerHTML = '<line stroke="#1f4fa8" stroke-width="2" stroke-dasharray="5 4"/><circle r="4" fill="#1f4fa8"/>'; document.body.appendChild(wire);
   document.body.append(veil, tip, ringBox);
@@ -1910,8 +1936,8 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     scrollIn(); setTimeout(scrollIn, 900);
     const figs = val(s.figs);
     const side = s.chip ? `<span class="tside both">${val(s.chip)}</span>` : s.mode === "baseline" ? `<span class="tside base">${t_("Without OpEra")}</span>` : s.mode === "opera" ? `<span class="tside opera">${t_("With OpEra")}</span>` : `<span class="tside both">${t_("Both, side by side")}</span>`;
-    tip.style.transition = "none"; tip.style.opacity = 0; void tip.offsetWidth;
-    tip.innerHTML = `<div class="ttop">${side}<span class="tstep">${i + 1} / ${TOUR.steps.length}</span></div><h3>${val(s.title)}</h3><p>${val(s.text)}</p>
+    tip.style.transition = "none"; tip.style.opacity = 0; void tip.offsetWidth; tip.classList.toggle("twide", !!s.wide);
+    tip.innerHTML = `<div class="ttop">${side}<span class="tstep">${i + 1} / ${TOUR.steps.length}</span></div><h3>${val(s.title)}</h3><p>${val(s.text)}</p>${s.html ? val(s.html) : ""}
       ${figs && figs.length ? `<table class="tfigs"><tr><th></th><th>${t_("Without OpEra")}</th><th class="o">${t_("With OpEra")}</th></tr>${figs.map(([l, a, b]) => `<tr><td>${l}</td><td>${a}</td><td class="o">${b}</td></tr>`).join("")}</table>` : ""}
       <div class="tbtns"><button class="btn" type="button" data-t="end">${t_("End tour")}</button><span style="flex:1"></span><button class="btn" type="button" data-t="back">${t_("Back")}</button><button class="btn pri" type="button" data-t="next">${i === TOUR.steps.length - 1 ? t_("Explore on my own") : t_("Next")}</button></div>`;
     tip.hidden = false; tip.style.opacity = 0; markLayer.style.opacity = 0; ringPool.forEach(r => r.style.opacity = 0);
@@ -1939,9 +1965,19 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
       Object.assign(ringBox.style, { left:x0 - 6 + "px", top:y0 - 6 + "px", width:x1 - x0 + 12 + "px", height:y1 - y0 + 12 + "px" }); ringBox.hidden = false;
       rs.forEach((r, k) => { const el = ringAt(k); Object.assign(el.style, { left:r.left - 6 + "px", top:r.top - 6 + "px", width:r.width + 12 + "px", height:r.height + 12 + "px" }); el.hidden = false; }); } else ringBox.hidden = true;
     for (let k = els.length; k < ringPool.length; k++) ringPool[k].hidden = true;
-    { const W2 = innerWidth, H2 = innerHeight, holes = els.length ? els.map(clip).map(r => { const x = r.left - 6, y = r.top - 6, w = r.width + 12, h = r.height + 12; return `M${x} ${y}h${w}v${h}h${-w}Z`; }).join("") : "";
-      dim.setAttribute("viewBox", `0 0 ${W2} ${H2}`); dimPath.setAttribute("d", `M0 0H${W2}V${H2}H0Z` + holes);
-      const st = TOUR.steps[T.i]; dim.style.opacity = (els.length || (st && st.dimAll)) && performance.now() >= T.settle && st && st.dim !== false ? 1 : 0; }
+    const spots = (() => { const st = TOUR.steps[T.i]; if (!st || !st.spot || tab !== "floor") return []; const sr2 = stage.getBoundingClientRect();
+      const hull = pts => { pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]); const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        const lo = [], up = []; for (const p of pts) { while (lo.length >= 2 && cr(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+        for (const p of [...pts].reverse()) { while (up.length >= 2 && cr(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); } return [...lo.slice(0, -1), ...up.slice(0, -1)]; };
+      return (val(st.spot) || []).map(b => { const pts = [];
+        for (const x of [b.x0 - .6, b.x1 + .6]) for (const z of [b.z0 - .6, b.z1 + .6]) for (const y of [0, b.h ?? 4]) { V3.set(x - W / 2, y, z - D / 2).project(camera);
+          pts.push([sr2.left + (V3.x + 1) / 2 * sr2.width, sr2.top + (1 - V3.y) / 2 * sr2.height]); }
+        return hull(pts); }); })();
+    { const W2 = innerWidth, H2 = innerHeight;
+      const rects = (els.length ? els.map(clip) : []).map(r => `<rect x="${r.left - 6}" y="${r.top - 6}" width="${r.width + 12}" height="${r.height + 12}" rx="10"/>`).join("");
+      const polys = spots.map(pg => `<polygon points="${pg.map(p => p.map(v => v.toFixed(1)).join(",")).join(" ")}" stroke="black" stroke-width="10" stroke-linejoin="round"/>`).join("");
+      dim.setAttribute("viewBox", `0 0 ${W2} ${H2}`); if (dimHoles.innerHTML !== rects + polys) dimHoles.innerHTML = rects + polys;
+      const st = TOUR.steps[T.i]; dim.style.opacity = (els.length || spots.length || (st && st.dimAll)) && performance.now() >= T.settle && st && st.dim !== false ? 1 : 0; }
     const settled = performance.now() >= T.settle;
     if (settled) { ringPool.forEach(r => r.style.opacity = 1); markLayer.style.opacity = 1; }
     { const st = TOUR.steps[T.i], ringed = new Set(els.map(el => el.id));
@@ -1960,6 +1996,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     if (cmp) { camera.aspect = asp; camera.updateProjectionMatrix(); }
     }
     let tx = sr.left + 16, ty = sr.bottom - th - 16;                       // default: bottom-left of the 3D view
+    if (TOUR.steps[T.i] && TOUR.steps[T.i].center) { tx = sr.left + (sr.width - tw) / 2; ty = sr.top + (sr.height - th) / 2; }
     const avoid = [...rs0(), ...cards, ...[...markLayer.children].filter(el => el.style.display !== "none").map(el => el.getBoundingClientRect())];
     const free = (x, y) => x >= sr.left + 8 && y >= Math.min(sr.top, 60) && x + tw <= sr.right - 8 && y + th <= sr.bottom - 8 && !avoid.some(q => x < q.right + 8 && x + tw > q.left - 8 && y < q.bottom + 8 && y + th > q.top - 8);
     if (els.length) { const r = { left:parseFloat(ringBox.style.left), top:parseFloat(ringBox.style.top) }; r.right = r.left + parseFloat(ringBox.style.width); r.bottom = r.top + parseFloat(ringBox.style.height);
@@ -1967,7 +2004,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
       const tries = [[r.right + 16, clampY(r.top), r.right + 16 + tw <= innerWidth - 8], [r.left - tw - 16, clampY(r.top), r.left - tw - 16 >= 8],
                      [clampX(r.left), r.bottom + 14, r.bottom + 14 + th <= innerHeight - 8], [clampX(r.left), r.top - th - 14, r.top - th - 14 >= 8]];
       const ok = tries.find(x => x[2] && free(x[0], x[1])); if (ok) { tx = ok[0]; ty = ok[1]; } }
-    if (!free(tx, ty)) {                                                    // scan the view for a free spot: corners first, then a grid
+    if (!(TOUR.steps[T.i] && TOUR.steps[T.i].center) && !free(tx, ty)) {    // scan the view for a free spot: corners first, then a grid
       const cmpW = sr.width / 2, spots = [[sr.left + 16, sr.bottom - th - 16], [sr.left + 16, sr.top + 60], [sr.right - tw - 16, sr.bottom - th - 16], [sr.right - tw - 16, sr.top + 60],
         [sr.left + cmpW - tw / 2, sr.bottom - th - 90], [sr.left + cmpW - tw / 2, sr.top + 60]];
       for (let gy = sr.top + 50; gy < sr.bottom - th; gy += 40) for (let gx = sr.left + 12; gx < sr.right - tw; gx += 60) spots.push([gx, gy]);
