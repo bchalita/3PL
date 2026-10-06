@@ -1844,18 +1844,17 @@ const spotFloorM = new THREE.MeshStandardMaterial({ color:0xf1f2f4, roughness:.9
 const spotPal = PGEO.slice(0, 2).map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m.clone(), 400); im.count = 0; im.frustumCulled = false; im.layers.set(1); spotLayer.add(im); return im; });
 scene.traverse(o => { if (o.isLight) o.layers.enable(1); });
 function spotPass() {
-  SPOT_A = Math.min(1, SPOT_A + .06); spotVeil.material.opacity = .5 * SPOT_A;
+  SPOT_A = Math.min(1, SPOT_A + .03); spotVeil.material.opacity = .3 * SPOT_A;      // a soft dim that fades in
   // the pallets the stop is about, copied from the live instanced meshes
   const ids = SPOT.pallets || new Set(); let k = 0;
   for (let i = 0; i < NP && k < 400; i++) if (ids.has(PL[i].i)) { baseM.getMatrixAt(i, M4); spotPal[0].setMatrixAt(k, M4); loadM.getMatrixAt(i, M4); spotPal[1].setMatrixAt(k, M4);
     loadM.getColorAt(i, tmp); spotPal[1].setColorAt(k, tmp); k++; }
   for (const im of spotPal) { im.count = k; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
-  // lane floors
-  while (spotLayer.children.length > 2) { const f = spotLayer.children.at(-1); spotLayer.remove(f); f.geometry.dispose(); }
-  for (const b of SPOT.boxes || []) { const f = new THREE.Mesh(new THREE.PlaneGeometry(b.x1 - b.x0, b.z1 - b.z0), spotFloorM); f.rotation.x = -Math.PI / 2; f.position.set((b.x0 + b.x1) / 2, .03, (b.z0 + b.z1) / 2); f.layers.set(1); spotLayer.add(f); }
-  const marked = (SPOT.trucks || []).filter(Boolean); marked.forEach(g => g.traverse(o => o.layers.enable(1)));
+  // the truck, and the pallet jacks / forklifts working inside the highlighted areas (so boxes never move on their own)
+  const inBox = g => (SPOT.boxes || []).some(b => g.position.x >= b.x0 - 3 && g.position.x <= b.x1 + 3 && g.position.z >= b.z0 - 3 && g.position.z <= b.z1 + 6);
+  const marked = [...(SPOT.trucks || []).filter(Boolean), ...MV.map(m => m.g).filter(g => g.visible && inBox(g))]; marked.forEach(g => g.traverse(o => o.layers.enable(1)));
   const ac = renderer.autoClear; renderer.autoClear = false;
-  renderer.render(spotScene, spotCam); renderer.clearDepth();
+  renderer.render(spotScene, spotCam);                                    // the veil keeps the depth buffer, so walls still hide what is behind them
   const bg = scene.background; scene.background = null;                // the second pass must not repaint the sky over the veil
   camera.layers.set(1); renderer.render(scene, camera); camera.layers.set(0); scene.background = bg;
   renderer.autoClear = ac; marked.forEach(g => g.traverse(o => o.layers.disable(1)));
