@@ -1304,8 +1304,8 @@ const TOUR = {
     { ord:DECISION ? DECISION.b.bk + .2 : T0 + 12 * 60 + 2, mode:"opera", title:t_("How OpEra decides"),
       at:() => (laneExample() || { t:T0 + 12 * 60 }).t - 1, lead:0, after:.25,
       cam:() => { const ex = laneExample(); if (!ex) return null; const d = outDoor(ex.door); return aim(d.x + 3, D + 10, -16, 30, 34); },   // from the yard: the truck at the door, its lane behind it
-      spot:() => { const ex = laneExample(); if (!ex) return []; const d = outDoor(ex.door), [a, b] = lanesX(ex.g); return [{ x0:d.x - 2, x1:d.x + 2, z0:D, z1:D + 22, h:5 }, { x0:Math.min(a, d.x - 2), x1:Math.max(b, d.x + 2), z0:D - 24, z1:D, h:2 }]; },
-      pallets:() => { const ex = laneExample(); return ex ? lanePals(TO, ex.g, ex.t) : null; },
+      spot3d:() => { const ex = laneExample(); if (!ex) return null; const [a, b] = lanesX(ex.g), tr = (TO.DATA.trucks || []).find(x => x.dir === "out" && x.door === ex.door && x.td <= ex.t && (x.tp == null || x.tp > ex.t));
+        return { trucks:tr ? [tr.i] : [], boxes:[{ x0:a - .4, x1:b + .4, z0:D - 24, z1:D - .2 }], pallets:[...lanePals(TO, ex.g, ex.t), ...(tr ? tr.pal : [])] }; },
       text:t_("Every 30 minutes it checks each lane and books when waiting would cost more. Click the truck to see why it was booked.") },
     { ord:Math.max(DECISION ? DECISION.b.bk + 1 : 0, DIS ? DIS.t + 1 : 0, T0 + 12 * 60), mode:"opera", title:t_("Every lane explains itself"), at:() => (laneExample() || { t:T0 + 12 * 60 }).t, lead:1, speed:1,
       cam:() => { const ex = laneExample(); if (!ex) return null; const [a, b] = lanesX(ex.g), d = outDoor(ex.door); return { area:[Math.min(a, d.x - 4), Math.max(b, d.x + 4), D - 26, D + 16], from:"south" }; },
@@ -1833,6 +1833,33 @@ function stepMap(R) {
 }
 
 /* ================================================================= loop */
+// ---- spotlight: the tour can keep a truck, a lane floor and some pallets bright while everything else dims, traced in 3D
+// SPOT = { trucks:[truck object], boxes:[{x0,x1,z0,z1}], pallets:Set(ids) } or null. Drawn after the frame: veil, then the
+// highlighted objects again (layer 1) with the pallets copied into a small instanced mesh each frame.
+let SPOT = null, SPOT_A = 0;
+const spotCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), spotVeil = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ color:0x0f141e, transparent:true, opacity:0, depthTest:false, depthWrite:false }));
+const spotScene = new THREE.Scene(); spotScene.add(spotVeil);
+const spotLayer = new THREE.Group(); world.add(spotLayer);
+const spotFloorM = new THREE.MeshStandardMaterial({ color:0xf1f2f4, roughness:.95 });
+const spotPal = PGEO.slice(0, 2).map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m.clone(), 400); im.count = 0; im.frustumCulled = false; im.layers.set(1); spotLayer.add(im); return im; });
+scene.traverse(o => { if (o.isLight) o.layers.enable(1); });
+function spotPass() {
+  SPOT_A = Math.min(1, SPOT_A + .06); spotVeil.material.opacity = .5 * SPOT_A;
+  // the pallets the stop is about, copied from the live instanced meshes
+  const ids = SPOT.pallets || new Set(); let k = 0;
+  for (let i = 0; i < NP && k < 400; i++) if (ids.has(PL[i].i)) { baseM.getMatrixAt(i, M4); spotPal[0].setMatrixAt(k, M4); loadM.getMatrixAt(i, M4); spotPal[1].setMatrixAt(k, M4);
+    loadM.getColorAt(i, tmp); spotPal[1].setColorAt(k, tmp); k++; }
+  for (const im of spotPal) { im.count = k; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }
+  // lane floors
+  while (spotLayer.children.length > 2) { const f = spotLayer.children.at(-1); spotLayer.remove(f); f.geometry.dispose(); }
+  for (const b of SPOT.boxes || []) { const f = new THREE.Mesh(new THREE.PlaneGeometry(b.x1 - b.x0, b.z1 - b.z0), spotFloorM); f.rotation.x = -Math.PI / 2; f.position.set((b.x0 + b.x1) / 2, .03, (b.z0 + b.z1) / 2); f.layers.set(1); spotLayer.add(f); }
+  const marked = (SPOT.trucks || []).filter(Boolean); marked.forEach(g => g.traverse(o => o.layers.enable(1)));
+  const ac = renderer.autoClear; renderer.autoClear = false;
+  renderer.render(spotScene, spotCam); renderer.clearDepth();
+  const bg = scene.background; scene.background = null;                // the second pass must not repaint the sky over the veil
+  camera.layers.set(1); renderer.render(scene, camera); camera.layers.set(0); scene.background = bg;
+  renderer.autoClear = ac; marked.forEach(g => g.traverse(o => o.layers.disable(1)));
+}
 function resize() { const r = stage.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(stage); resize();
 let last = performance.now();
@@ -1841,7 +1868,7 @@ renderer.setAnimationLoop(now => {
   if (fly) { fly.k = Math.min(1, fly.k + dt * 1.1); const e = 1 - Math.pow(1 - fly.k, 3); camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.q0, fly.q1, e); if (fly.k >= 1) fly = null; }
   try { frame(dt); } catch (e) { console.error(e); }
   try { ui(dt); } catch (e) { console.error(e); }
-  if (tab === "floor") { controls.update(); if (VIEWMODE === "compare") renderCompare(); else renderer.render(scene, camera); } else { try { routesFrame(); } catch (e) { console.error(e); } }
+  if (tab === "floor") { controls.update(); if (VIEWMODE === "compare") renderCompare(); else { renderer.render(scene, camera); if (SPOT) spotPass(); } } else { try { routesFrame(); } catch (e) { console.error(e); } }
 });
 window.FR = { get TRK() { return TRK; }, get cam() { return camera; }, get speed() { return speed; }, get playing() { return playing; }, get CS() { return CLOCK_STOP; }, get TOUR() { return typeof TOUR !== "undefined" ? TOUR : null; }, get VISIT() { return typeof VISIT !== "undefined" ? VISIT : null; }, paint:() => paint(), get CUR() { return CUR; }, get focusSet() { return focusSet; }, get PL() { return PL; }, pState:(p, m) => pState(p, m), fly:(...a) => flyToArea(...a), proj:(x, z, y = 1) => { const v = new THREE.Vector3(x - W / 2, y, z - D / 2).project(camera), r = stage.getBoundingClientRect(); return [Math.round(r.left + (v.x + 1) / 2 * r.width), Math.round(r.top + (1 - v.y) / 2 * r.height), +v.z.toFixed(3)]; }, inDoor, outDoor, L, D, setFocus, setMode, get t() { return t; }, set t(v) { t = v; }, laneStats:() => laneStats(), useWorld, WORLDS };   // console hook for testing
 { const b = $("panelBtn"), f = $("floor");      // the numbers panel: closed by default, one click away
@@ -1921,6 +1948,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     if (at != null) { const lead = val(s.lead) ?? 4; t = Math.max(RANGE[tab][0], at - lead); speed = lead ? (s.speed || Math.max(1, lead / 4)) : CLOCK_AFTER; CLOCK_STOP = lead ? at : null; setPlay(true); }
     else { CLOCK_STOP = null; speed = CLOCK_AFTER; setPlay(true); }                       // no jump: keep the replay moving, slowly
     // light up only the pallets the stop is about
+    const sp3 = val(s.spot3d); SPOT = sp3 ? { trucks:(sp3.trucks || []).map(id => (TRK.find(o => o.tr.i === id) || {}).g), boxes:sp3.boxes || [], pallets:new Set(sp3.pallets || []) } : null; SPOT_A = 0;
     const lit = val(s.pallets);
     if (lit && lit.length && VIEWMODE !== "compare") { focusSet = new Set(lit); paint(); } else if (focusSet && !focus) { focusSet = null; VIEWMODE === "compare" ? paintAll() : paint(); }
     camTo(s.cam);
@@ -1946,7 +1974,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     tip.querySelector('[data-t="next"]').onclick = () => go(i + 1); tip.querySelector('[data-t="back"]').onclick = () => go(i - 1); tip.querySelector('[data-t="end"]').onclick = () => end();
     tip.querySelector('[data-t="next"]').focus();
   }
-  function end() { const was = T.i; track(was >= TOUR.steps.length - 1 ? "tour_done" : "tour_exit", { at:was, n:TOUR.steps.length }); ["callout", "pc0", "pc1"].forEach(id => $(id) && $(id).classList.remove("tfaded")); document.body.classList.remove("smodes", "stime"); story(false); wire.style.opacity = 0; T.i = -1; TOUR_I = -1; STORY_CARDS = null; $("wbadge").style.visibility = "";
+  function end() { SPOT = null; const was = T.i; track(was >= TOUR.steps.length - 1 ? "tour_done" : "tour_exit", { at:was, n:TOUR.steps.length }); ["callout", "pc0", "pc1"].forEach(id => $(id) && $(id).classList.remove("tfaded")); document.body.classList.remove("smodes", "stime"); story(false); wire.style.opacity = 0; T.i = -1; TOUR_I = -1; STORY_CARDS = null; $("wbadge").style.visibility = "";
     if (focusSet && !focus) { focusSet = null; }
     if (typeof setMode === "function" && WORLDS.length > 1) setMode("compare");
     if (tab !== "floor") document.querySelector('[data-tab="floor"]').click();
