@@ -441,6 +441,16 @@ const num = (v, d = 0) => Number(v).toLocaleString(LOC, { minimumFractionDigits:
 const ON_WORLD = [];
 let VIEWMODE = "single";
 let CLOCK_STOP = null, CLOCK_AFTER = 10 / 60;     // tour: the moment a stop is about, and the speed it keeps playing at after (10\u00d7)
+// ---- visit tracking: only on our demo domain, a beacon per event to /e (nginx logs it); no cookies, no personal data
+const VID = Math.random().toString(36).slice(2, 10), T_OPEN = Date.now();
+let TRACK_MAX = -1;
+function track(ev, extra = {}) {
+  try { if (!/(^|\.)operatechnologies\.com$/.test(location.hostname)) return;
+    const q = new URLSearchParams({ ev, v:VID, p:location.pathname, s:Math.round((Date.now() - T_OPEN) / 1000), m:TRACK_MAX, ...extra });
+    navigator.sendBeacon("/e?" + q.toString()); } catch (e) {}
+}
+track("open", { lang:document.documentElement.lang || "" });
+addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") track("leave"); });
 let STORY_CARDS = null;                           // tour: ids of the event cards the current stop shows (null = all)
 let TOUR_I = -1;                                  // tour: the current stop
 let CMP_LANE = null;                              // side by side: the lane whose card is open on both panes                            // set by the tour: pause when the clock reaches this minute                          // "single" (one run, full detail) or "compare" (both runs, side by side)                               // callbacks run after the active run changes
@@ -1872,6 +1882,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     if (i >= TOUR.steps.length) return end();
     if (typeof CO_GONE !== "undefined") CO_GONE.clear(); CMP_LANE = null;   // the tour shows every card, even ones the viewer closed
     const s = TOUR.steps[i], prev = TOUR.steps[T.i]; T.i = i; TOUR_I = i; story(true);
+    TRACK_MAX = Math.max(TRACK_MAX, i); track("step", { i, n:TOUR.steps.length });
     if (VIEWMODE === "single" && s.mode && s.mode !== "compare" && prev && prev.mode && prev.mode !== s.mode && tab === "floor") crossfade();   // same moment, other run: fade, don't cut
     if (focus) setFocus(null);                       // a lane card opened by an earlier stop closes
     if (typeof setMode === "function" && WORLDS.length > 1 && VIEWMODE !== (s.mode || "compare")) setMode(s.mode || "compare");
@@ -1906,7 +1917,7 @@ if (typeof TOUR !== "undefined" && TOUR && TOUR.steps && TOUR.steps.length) {
     tip.querySelector('[data-t="next"]').onclick = () => go(i + 1); tip.querySelector('[data-t="back"]').onclick = () => go(i - 1); tip.querySelector('[data-t="end"]').onclick = () => end();
     tip.querySelector('[data-t="next"]').focus();
   }
-  function end() { const was = T.i; ["callout", "pc0", "pc1"].forEach(id => $(id) && $(id).classList.remove("tfaded")); document.body.classList.remove("smodes", "stime"); story(false); wire.style.opacity = 0; T.i = -1; TOUR_I = -1; STORY_CARDS = null; $("wbadge").style.visibility = "";
+  function end() { const was = T.i; track(was >= TOUR.steps.length - 1 ? "tour_done" : "tour_exit", { at:was, n:TOUR.steps.length }); ["callout", "pc0", "pc1"].forEach(id => $(id) && $(id).classList.remove("tfaded")); document.body.classList.remove("smodes", "stime"); story(false); wire.style.opacity = 0; T.i = -1; TOUR_I = -1; STORY_CARDS = null; $("wbadge").style.visibility = "";
     if (focusSet && !focus) { focusSet = null; }
     if (typeof setMode === "function" && WORLDS.length > 1) setMode("compare");
     if (tab !== "floor") document.querySelector('[data-tab="floor"]').click();
